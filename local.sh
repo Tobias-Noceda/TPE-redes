@@ -165,7 +165,7 @@ deploy_services() {
     fi
 
     print_status "Applying Kubernetes manifests to namespace '$NAMESPACE'..."
-    kubectl apply -f $DIR/dist/kubernetes.yaml -n $NAMESPACE
+    kubectl apply -k $DIR/dist/ -n $NAMESPACE
 
     print_status "Waiting for all deployments to be available..."
     kubectl wait --namespace $NAMESPACE --for=condition=available deployments --timeout=300s --all

@@ -1,0 +1,7 @@
+# Source: retail-store-sample-catalog-chart/templates/configmap.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog
+data:
+  RETAIL_CATALOG_PERSISTENCE_PROVIDER: in-memory

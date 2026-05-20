@@ -1,0 +1,7 @@
+# Source: retail-store-sample-checkout-chart/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: checkout
+data:
+  RETAIL_CHECKOUT_PERSISTENCE_PROVIDER: in-memory

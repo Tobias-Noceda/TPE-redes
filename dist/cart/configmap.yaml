@@ -1,0 +1,7 @@
+# Source: retail-store-sample-cart-chart/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: carts
+data:
+  RETAIL_CART_PERSISTENCE_PROVIDER: in-memory
