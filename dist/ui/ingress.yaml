@@ -3,6 +3,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ui
+  namespace: the-store
   labels:
     helm.sh/chart: ui-1.2.4
     app.kubernetes.io/name: ui

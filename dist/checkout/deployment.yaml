@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: checkout
+  namespace: the-store
   labels:
     helm.sh/chart: checkout-1.2.4
     app.kubernetes.io/name: checkout
@@ -57,6 +58,7 @@ spec:
               port: 8080
           resources:
             limits:
+              cpu: 128m
               memory: 256Mi
             requests:
               cpu: 128m

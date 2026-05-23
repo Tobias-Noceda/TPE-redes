@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# All logging resources already carry namespace: logging in their metadata.
+# This kustomization is referenced from the root as a sub-kustomization,
+# so the root-level namespace field does NOT apply here.
+resources:
+  - namespace.yaml
+  - fluent-bit/service-account.yaml
+  - fluent-bit/cluster-role.yaml
+  - fluent-bit/configmap.yaml
+  - fluent-bit/daemonset.yaml
+  - opensearch/service-account.yaml
+  - opensearch/service.yaml
+  - opensearch/statefulset.yaml
+  - opensearch/dashboards/deployment.yaml
+  - opensearch/dashboards/service.yaml
+  - opensearch/dashboards/ingress.yaml

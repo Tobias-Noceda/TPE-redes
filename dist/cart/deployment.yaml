@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: carts
+  namespace: the-store
   labels:
     helm.sh/chart: carts-1.2.4
     app.kubernetes.io/name: carts

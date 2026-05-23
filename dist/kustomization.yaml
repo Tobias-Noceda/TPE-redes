@@ -1,33 +1,35 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
   # catalog
-  - catalog/serviceaccount.yaml
+  - catalog/service-account.yaml
   - catalog/configmap.yaml
   - catalog/secret.yaml
   - catalog/service.yaml
   - catalog/deployment.yaml
   # cart
-  - cart/serviceaccount.yaml
+  - cart/service-account.yaml
   - cart/configmap.yaml
   - cart/service.yaml
   - cart/deployment.yaml
   # orders
-  - orders/serviceaccount.yaml
+  - orders/service-account.yaml
   - orders/configmap.yaml
   - orders/rabbitmq-secret.yaml
   - orders/secret-db.yaml
   - orders/service.yaml
   - orders/deployment.yaml
   # checkout
-  - checkout/serviceaccount.yaml
+  - checkout/service-account.yaml
   - checkout/configmap.yaml
   - checkout/service.yaml
   - checkout/deployment.yaml
   # ui
-  - ui/serviceaccount.yaml
+  - ui/service-account.yaml
   - ui/configmap.yaml
   - ui/service.yaml
   - ui/deployment.yaml
   - ui/ingress.yaml
+  # logging — loaded as a nested kustomization so its resources keep
+  # namespace: logging and are NOT overridden by the namespace field above
+  - logging/

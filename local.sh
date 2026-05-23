@@ -164,16 +164,30 @@ deploy_services() {
         print_success "Namespace '$NAMESPACE' is ready"
     fi
 
-    print_status "Applying Kubernetes manifests to namespace '$NAMESPACE'..."
-    kubectl apply -k $DIR/dist/ -n $NAMESPACE
+    # NOTE: no -n flag here. App service manifests carry namespace: $NAMESPACE
+    # in their own metadata (see each yaml file).
+    # Logging manifests carry namespace: logging in their metadata.
+    # Passing -n would force ALL resources into one namespace and break logging.
+    print_status "Applying Kubernetes manifests..."
+    kubectl apply -k $DIR/dist/
 
-    print_status "Waiting for all deployments to be available..."
-    kubectl wait --namespace $NAMESPACE --for=condition=available deployments --timeout=300s --all
-    print_success "All deployments are available"
+    # Wait for app services in their namespace
+    print_status "Waiting for app deployments to be available ($NAMESPACE)..."
+    kubectl wait --namespace $NAMESPACE --for=condition=available deployments --timeout=600s --all
+    print_success "App deployments are available"
 
-    print_status "Waiting for all pods to be ready and running..."
-    kubectl wait --namespace $NAMESPACE --for=condition=ready pods --timeout=300s --all
-    print_success "All pods are ready and running"
+    print_status "Waiting for app pods to be ready ($NAMESPACE)..."
+    kubectl wait --namespace $NAMESPACE --for=condition=ready pods --timeout=600s --all
+    print_success "App pods are ready"
+
+    # Wait for logging infrastructure separately
+    print_status "Waiting for logging deployments to be available (logging)..."
+    kubectl wait --namespace logging --for=condition=available deployments --timeout=600s --all
+    print_success "Logging deployments are available"
+
+    print_status "Waiting for logging pods to be ready (logging)..."
+    kubectl wait --namespace logging --for=condition=ready pods --timeout=600s --all
+    print_success "Logging pods are ready"
 }
 
 show_status() {

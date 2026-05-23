@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: catalog
+  namespace: the-store
   labels:
     helm.sh/chart: catalog-1.2.4
     app.kubernetes.io/name: catalog
@@ -57,6 +58,7 @@ spec:
               port: 8080
           resources:
             limits:
+              cpu: 256m
               memory: 256Mi
             requests:
               cpu: 256m

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch-dashboards
+  namespace: logging
+  labels:
+    app.kubernetes.io/name: opensearch-dashboards
+    app.kubernetes.io/component: log-ui
+    app.kubernetes.io/owner: retail-store-sample
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opensearch-dashboards
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opensearch-dashboards
+        app.kubernetes.io/component: log-ui
+        app.kubernetes.io/owner: retail-store-sample
+    spec:
+      containers:
+        - name: opensearch-dashboards
+          image: opensearchproject/opensearch-dashboards:2.11.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5601
+          env:
+            - name: OPENSEARCH_HOSTS
+              value: '["http://opensearch.logging.svc.cluster.local:9200"]'
+            # Disable security plugin to match OpenSearch config above (dev only)
+            - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+              value: "true"
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 256m
+              memory: 128Mi
+            limits:
+              cpu: 512m
+              memory: 256Mi

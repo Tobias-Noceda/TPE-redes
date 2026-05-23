@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ui
+  namespace: the-store
   labels:
     helm.sh/chart: ui-1.2.4
     app.kubernetes.io/name: ui
@@ -75,6 +76,7 @@ spec:
             initialDelaySeconds: 10
           resources:
             limits:
+              cpu: 128m
               memory: 512Mi
             requests:
               cpu: 128m

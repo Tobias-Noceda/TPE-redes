@@ -1,0 +1,22 @@
+# Headless service — required for StatefulSet DNS
+# Each pod gets a stable DNS: opensearch-0.opensearch.logging.svc.cluster.local
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch
+  namespace: logging
+  labels:
+    app.kubernetes.io/name: opensearch
+    app.kubernetes.io/component: log-storage
+    app.kubernetes.io/owner: protogogos
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: opensearch
+  ports:
+    - name: rest
+      port: 9200
+      targetPort: 9200
+    - name: transport
+      port: 9300
+      targetPort: 9300
