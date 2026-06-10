@@ -24,7 +24,6 @@ data:
         Name             tail
         Path             /var/log/containers/*.log
         Tag              kube.*
-        Tag_Regex        (?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace_name>[^_]+)_(?<container_name>.+)-
         Mem_Buf_Limit    10MB
         Skip_Long_Lines  On
         Refresh_Interval 10
@@ -77,7 +76,7 @@ data:
 
     [FILTER]
         Name              multiline
-        Match             kube.*carts*
+        Match             kube.*cart*
         multiline.parser  java_multiline
 
     [FILTER]
@@ -94,7 +93,7 @@ data:
 
     [FILTER]
         Name     parser
-        Match    kube.*carts*
+        Match    kube.*cart*
         Key_Name log
         Parser   logback_parser
         Reserve_Data On
