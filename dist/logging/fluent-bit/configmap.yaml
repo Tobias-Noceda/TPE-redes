@@ -67,7 +67,7 @@ data:
         Rename  time timestamp
 
     # ──────────────────────────────────────────────────────────────
-    # UI / CARTS / ORDERS — Spring Boot → Logback text + multiline
+    # UI / CARTS / ORDERS — Spring Boot (Log4j2) → text + multiline
     # ──────────────────────────────────────────────────────────────
     [FILTER]
         Name              multiline
@@ -156,9 +156,9 @@ data:
     [PARSER]
         Name        logback_parser
         Format      regex
-        Regex       ^(?<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s+(?<level>\w+)\s+(?<pid>\d+)\s+---\s+\[(?<thread>[^\]]+)\]\s+(?<logger>\S+)\s+:\s+(?<message>.*)$
+        Regex       ^(?<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\s+(?<level>\w+)\s+(?<pid>\d+)\s+---\s+\[(?<thread>[^\]]+)\]\s+(?<logger>\S+)\s+:\s+(?<message>.*)$
         Time_Key    timestamp
-        Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+        Time_Format %Y-%m-%d %H:%M:%S.%L
         Time_Keep   On
 
     [MULTILINE_PARSER]
