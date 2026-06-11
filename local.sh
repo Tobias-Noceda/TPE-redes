@@ -87,14 +87,16 @@ nodes:
     kind: InitConfiguration
     nodeRegistration:
       kubeletExtraArgs:
-        node-labels: "ingress-ready=true"
+        node-labels: "node-role=control-plane"
+  extraPortMappings:
+  - containerPort: 443
+    hostPort: 443
+- role: worker
   extraPortMappings:
   - containerPort: 80
     hostPort: 80
     protocol: TCP
-  - containerPort: 443
-    hostPort: 443
-    protocol: TCP
+- role: worker
 EOF
 
         print_success "Cluster created successfully"
@@ -105,18 +107,29 @@ EOF
     print_status "Waiting for cluster to be ready..."
     kubectl wait --for=condition=Ready nodes --all --timeout=300s
     print_success "Cluster is ready"
+
+    print_status "Labeling nodes..."
+    kubectl label nodes the-store-control-plane node-role=control-plane --overwrite
+    kubectl label nodes the-store-worker ingress-ready=true --overwrite
+    kubectl label nodes the-store-worker2 node-role=app --overwrite
+    print_success "Nodes labeled"
 }
 
 install_ingress() {
     if ! kubectl get namespace ingress-nginx &> /dev/null; then
         print_status "Installing nginx ingress controller..."
         kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.1/deploy/static/provider/kind/deploy.yaml
+        
+        print_status "Pinning ingress controller to ingress-ready node..."
+        kubectl patch deployment ingress-nginx-controller -n ingress-nginx \
+          --patch '{"spec":{"template":{"spec":{"nodeSelector":{"ingress-ready":"true"}}}}}'
+        
         print_status "Waiting for nginx ingress controller to be ready..."
         kubectl wait --namespace ingress-nginx \
             --for=condition=ready pod \
             --selector=app.kubernetes.io/component=controller \
             --timeout=300s
-        print_success "Nginx ingress controller installed"
+        print_success "Nginx ingress controller installed and pinned to ingress-ready node"
     else
         print_success "Nginx ingress controller already installed"
     fi
@@ -226,6 +239,10 @@ show_status() {
         fi
 
         print_success "UI service is accessible at: http://localhost"
+        print_success "Logging Dashboards accessible at: http://logs.localhost (requires /etc/hosts entry)"
+        print_status ""
+        print_status "To access the logging dashboards, add this to your /etc/hosts:"
+        print_status "  127.0.0.1  logs.localhost"
     else
         print_warning "Cluster '$CLUSTER_NAME' does not exist"
     fi
