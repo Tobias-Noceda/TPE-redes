@@ -73,10 +73,13 @@ spec:
             - name: fluent-bit-config
               mountPath: /fluent-bit/etc/parsers.conf
               subPath: parsers.conf
-            # Lua script goes to a separate path to avoid any etc/ conflicts
+            # Lua scripts go to a separate path to avoid any etc/ conflicts
             - name: fluent-bit-config
               mountPath: /fluent-bit/scripts/index.lua
               subPath: index.lua
+            - name: fluent-bit-config
+              mountPath: /fluent-bit/scripts/level.lua
+              subPath: level.lua
       terminationGracePeriodSeconds: 10
       volumes:
         - name: varlog

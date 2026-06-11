@@ -24,6 +24,7 @@ data:
         Name             tail
         Path             /var/log/containers/*.log
         Tag              kube.*
+        Parser           cri
         Mem_Buf_Limit    10MB
         Skip_Long_Lines  On
         Refresh_Interval 10
@@ -52,22 +53,7 @@ data:
         Record  node_name ${NODE_NAME}
 
     # ──────────────────────────────────────────────────────────────
-    # CATALOG — Go / zerolog → JSON
-    # ──────────────────────────────────────────────────────────────
-    [FILTER]
-        Name     parser
-        Match    kube.*
-        Key_Name log
-        Parser   json_parser
-        Reserve_Data On
-
-    [FILTER]
-        Name    modify
-        Match   kube.*catalog*
-        Rename  time timestamp
-
-    # ──────────────────────────────────────────────────────────────
-    # UI / CARTS / ORDERS — Spring Boot (Log4j2) → text + multiline
+    # Java multiline — assemble stack traces before level detection
     # ──────────────────────────────────────────────────────────────
     [FILTER]
         Name              multiline
@@ -84,38 +70,18 @@ data:
         Match             kube.*orders*
         multiline.parser  java_multiline
 
-    [FILTER]
-        Name     parser
-        Match    kube.*ui*
-        Key_Name log
-        Parser   logback_parser
-        Reserve_Data On
-
-    [FILTER]
-        Name     parser
-        Match    kube.*cart*
-        Key_Name log
-        Parser   logback_parser
-        Reserve_Data On
-
-    [FILTER]
-        Name     parser
-        Match    kube.*orders*
-        Key_Name log
-        Parser   logback_parser
-        Reserve_Data On
-
     # ──────────────────────────────────────────────────────────────
-    # CHECKOUT — NestJS / pino → JSON
+    # Level detection — set level=ERROR/WARN/INFO based on log text
+    # Works for all services regardless of log format
     # ──────────────────────────────────────────────────────────────
     [FILTER]
-        Name    modify
-        Match   kube.*checkout*
-        Rename  msg  message
-        Rename  time timestamp
+        Name    lua
+        Match   kube.*
+        script  /fluent-bit/scripts/level.lua
+        call    set_level
 
     # ──────────────────────────────────────────────────────────────
-    # Compute index name via Lua — runs only on the-store namespace
+    # Compute index name via Lua
     # ──────────────────────────────────────────────────────────────
     [FILTER]
         Name    lua
@@ -140,12 +106,20 @@ data:
 
   parsers.conf: |
     [PARSER]
+        Name        cri
+        Format      regex
+        Regex       ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<log>.*)$
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+        Time_Keep   On
+
+    [PARSER]
         Name        docker
         Format      json
         Time_Key    time
         Time_Format %Y-%m-%dT%H:%M:%S.%L
         Time_Keep   On
-    
+
     [PARSER]
         Name        json_parser
         Format      json
@@ -167,6 +141,20 @@ data:
         Flush_Timeout 1000
         Rule          "start_state"    "/^\d{4}-\d{2}-\d{2}/"  "java_after_first"
         Rule          "java_after_first" "/^(\s+at |Caused by:|\.{3}\s+\d+\s+more)/" "java_after_first"
+
+  level.lua: |
+    function set_level(tag, timestamp, record)
+        local log = record["log"] or ""
+        local lower = string.lower(log)
+        if string.find(lower, "error") then
+            record["level"] = "ERROR"
+        elseif string.find(lower, "warn") then
+            record["level"] = "WARN"
+        else
+            record["level"] = "INFO"
+        end
+        return 1, timestamp, record
+    end
 
   index.lua: |
     function set_index(tag, timestamp, record)
