@@ -87,15 +87,33 @@ Run load generator tests to validate system performance:
 
 The load generator will run performance tests against your local cluster for 10 minutes (or until manually stopped) to validate system behavior under load.
 
-### Centralized logs management:
+### Centralized logs management
 
-Logs are handled in the cluster under the sub-domain `logs.localhost` for this reason, to be able to reach the cluster ingress `localhost:80` searching for the host `logs.localhost` this entry should be added to the `/etc/hosts` (`C:\Windows\System32\drivers\etc\hosts` in WIndows):
+Logs are handled in the cluster under the sub-domain `logs.localhost` for this reason, to be able to reach the cluster ingress `localhost:80` searching for the host `logs.localhost` this entry should be added to the `/etc/hosts` (`C:\Windows\System32\drivers\etc\hosts` in Windows):
 
 ```
 127.0.0.1       logs.localhost
 ```
 
 After that, when accessing `logs.localhost` on your browser, you will see the OpenSearch Dashboard.
+
+#### Indexes and dashboards creation
+
+OpenSearch needs indexes to read logs and be able to understand them so as to apply filters and create dashboards. To create the index you should:
+
+1. Open the side bar in the UI (`logs.localhost`)
+2. Go to "Dashboard Management" in the "Management" section.
+3. Navigate to: `saved Objects`
+4. Press import add the `/dist/logging/opensearch/dashboards/dashs/index-pattern.ndjson`
+
+##### **Dashboards**
+
+1. Repeat de imports for the other 3 `.ndjson` files.
+2. Go to side bar in the UI
+3. Go to "Dashboard" in "OpenSearch Dashboards" section
+4. Choose one of the created dashboards
+5. Use filters if needed
+6. (Optional) Pin filters and navigate to "Discover" in "OpenSearch Dashboards" section. In the reporting tab in the top-right to create reports in a csv file.
 
 ---
 
