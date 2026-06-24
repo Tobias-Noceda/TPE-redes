@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dashboards-import
+  namespace: logging
+  labels:
+    app.kubernetes.io/name: dashboards-import
+    app.kubernetes.io/component: log-ui-bootstrap
+    app.kubernetes.io/owner: protogogos
+spec:
+  # Retry until OpenSearch Dashboards is up and migrations are done
+  backoffLimit: 20
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dashboards-import
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: import
+          image: curlimages/curl:8.10.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              OSD="http://opensearch-dashboards.logging.svc.cluster.local:5601"
+
+              echo "Waiting for OpenSearch Dashboards to be ready..."
+              until [ "$(curl -s -o /dev/null -w '%{http_code}' "$OSD/api/status")" = "200" ]; do
+                echo "  /api/status not 200 yet, retrying in 5s..."
+                sleep 5
+              done
+              echo "Dashboards is up. Importing saved objects..."
+
+              # index-pattern MUST go first — dashboards reference it
+              for f in index-pattern \
+                       dashboard-logs-por-servicio \
+                       dashboard-errores \
+                       dashboard-actividad-namespace-pod; do
+                echo "Importing $f.ndjson ..."
+                curl -s --fail-with-body \
+                  -X POST "$OSD/api/saved_objects/_import?overwrite=true" \
+                  -H "osd-xsrf: true" \
+                  -F "file=@/dashboards/$f.ndjson;type=application/ndjson"
+                echo
+              done
+
+              echo "All dashboards imported successfully."
+          volumeMounts:
+            - name: dashboards
+              mountPath: /dashboards
+              readOnly: true
+      volumes:
+        - name: dashboards
+          configMap:
+            name: dashboards-ndjson

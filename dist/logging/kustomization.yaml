@@ -16,3 +16,19 @@ resources:
   - opensearch/dashboards/deployment.yaml
   - opensearch/dashboards/service.yaml
   - opensearch/dashboards/ingress.yaml
+  - opensearch/dashboards/import-job.yaml
+
+# Bundle the saved-object .ndjson files into a ConfigMap the import Job mounts.
+# disableNameSuffixHash keeps the name stable ("dashboards-ndjson") so the Job
+# can reference it directly.
+configMapGenerator:
+  - name: dashboards-ndjson
+    namespace: logging
+    files:
+      - opensearch/dashboards/dashs/index-pattern.ndjson
+      - opensearch/dashboards/dashs/dashboard-logs-por-servicio.ndjson
+      - opensearch/dashboards/dashs/dashboard-errores.ndjson
+      - opensearch/dashboards/dashs/dashboard-actividad-namespace-pod.ndjson
+
+generatorOptions:
+  disableNameSuffixHash: true
