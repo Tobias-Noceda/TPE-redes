@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JSON logging to stdout so FluentBit/OpenSearch can parse `level` reliably.
+     One compact JSON object per log event (stack traces stay on one line). -->
+<Configuration status="WARN">
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <JsonTemplateLayout eventTemplateUri="classpath:log-event-template.json">
+        <EventTemplateAdditionalField key="service" value="orders"/>
+      </JsonTemplateLayout>
+    </Console>
+  </Appenders>
+  <Loggers>
+    <Root level="info">
+      <AppenderRef ref="Console"/>
+    </Root>
+  </Loggers>
+</Configuration>

@@ -77,9 +77,6 @@ spec:
             - name: fluent-bit-config
               mountPath: /fluent-bit/scripts/index.lua
               subPath: index.lua
-            - name: fluent-bit-config
-              mountPath: /fluent-bit/scripts/level.lua
-              subPath: level.lua
       terminationGracePeriodSeconds: 10
       volumes:
         - name: varlog

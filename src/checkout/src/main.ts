@@ -22,12 +22,15 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { CheckoutModule } from './checkout/checkout.module';
+import { JsonLogger } from './logging/json.logger';
 
 async function bootstrap() {
   // Start SDK before nestjs factory create
   await otelSDK.start();
 
-  const app = await NestFactory.create(AppModule);
+  // JSON logger routes all Nest logging (incl. `new Logger()` instances) to
+  // structured stdout so OpenSearch can parse `level`.
+  const app = await NestFactory.create(AppModule, { logger: new JsonLogger() });
   app.useGlobalPipes(new ValidationPipe());
 
   const config = new DocumentBuilder()

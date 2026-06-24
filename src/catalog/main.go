@@ -19,7 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -58,7 +58,69 @@ import (
 // @host localhost:8080
 // @BasePath /
 
+// logger emits structured JSON to stdout using the shared log schema
+// (timestamp, level, message, logger, service) so FluentBit/OpenSearch can
+// parse `level` reliably and the Errores dashboard works.
+var logger *slog.Logger
+
+func setupLogger() {
+	h := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			switch a.Key {
+			case slog.TimeKey:
+				a.Key = "timestamp"
+			case slog.MessageKey:
+				a.Key = "message"
+			}
+			return a
+		},
+	})
+	logger = slog.New(h).With("service", "catalog")
+}
+
+// fatal logs an ERROR and exits, keeping every line as JSON on stdout
+// (instead of stdlib log.Fatal which writes plain text to stderr).
+func fatal(msg string, err error) {
+	logger.Error(msg, "logger", "main", "error", err.Error())
+	os.Exit(1)
+}
+
+// ginSlogLogger replaces gin's default text access log with structured JSON.
+// Level is derived from the HTTP status: 5xx=ERROR, 4xx=WARN, else INFO.
+func ginSlogLogger() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		c.Next()
+		if path == "/health" {
+			return
+		}
+		status := c.Writer.Status()
+		msg := fmt.Sprintf("%s %s %d", c.Request.Method, path, status)
+		attrs := []any{
+			"logger", "gin",
+			"status", status,
+			"method", c.Request.Method,
+			"path", path,
+			"latency_ms", float64(time.Since(start).Microseconds()) / 1000.0,
+			"client_ip", c.ClientIP(),
+		}
+		switch {
+		case status >= 500:
+			logger.Error(msg, attrs...)
+		case status >= 400:
+			logger.Warn(msg, attrs...)
+		default:
+			logger.Info(msg, attrs...)
+		}
+	}
+}
+
 func main() {
+	setupLogger()
+	gin.SetMode(gin.ReleaseMode)
+
 	ctx := context.Background()
 
 	_, otelPresent := os.LookupEnv("OTEL_SERVICE_NAME")
@@ -66,36 +128,34 @@ func main() {
 	if otelPresent {
 		_, err := initTracer(ctx)
 		if err != nil {
-			log.Fatal(err)
+			fatal("failed to initialize tracer", err)
 		}
 	}
 
 	var config config.AppConfiguration
 	if err := envconfig.Process(ctx, &config); err != nil {
-		log.Fatal(err)
+		fatal("failed to process config", err)
 	}
 
 	db, err := repository.NewRepository(config.Database)
 	if err != nil {
-		log.Fatal(err)
+		fatal("failed to initialize repository", err)
 	}
 
 	api, err := api.NewCatalogAPI(db)
 	if err != nil {
-		log.Fatal(err)
+		fatal("failed to initialize catalog API", err)
 	}
 
 	r := gin.New()
-	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{"/health"},
-	}))
+	r.Use(ginSlogLogger())
 
 	p := ginprometheus.NewPrometheus("gin")
 	p.Use(r)
 
 	c, err := controller.NewController(api)
 	if err != nil {
-		log.Fatalln("Error creating controller", err)
+		fatal("error creating controller", err)
 	}
 
 	chaosController := middleware.NewChaosController()
@@ -144,7 +204,7 @@ func main() {
 	// it won't block the graceful shutdown handling below
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			fatal("server listen failed", err)
 		}
 	}()
 
@@ -156,17 +216,17 @@ func main() {
 	// kill -9 is syscall.SIGKILL but can't be catch, so don't need add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
+	logger.Info("shutting down server", "logger", "main")
 
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
+		fatal("server forced to shutdown", err)
 	}
 
-	log.Println("Server exiting")
+	logger.Info("server exiting", "logger", "main")
 }
 
 func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {

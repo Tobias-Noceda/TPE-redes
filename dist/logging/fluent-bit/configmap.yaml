@@ -53,32 +53,13 @@ data:
         Record  node_name ${NODE_NAME}
 
     # ──────────────────────────────────────────────────────────────
-    # Java multiline — assemble stack traces before level detection
+    # All services emit single-line JSON to stdout with a real `level`
+    # field (ERROR/WARN/INFO/DEBUG). The kubernetes filter above runs
+    # Merge_Log On, which parses that JSON and promotes level/message/
+    # timestamp/logger/service to top-level record fields. No per-service
+    # parsing, multiline assembly, or content-based level guessing needed:
+    # stack traces are carried inside the JSON `exception` field on one line.
     # ──────────────────────────────────────────────────────────────
-    [FILTER]
-        Name              multiline
-        Match             kube.*ui*
-        multiline.parser  java_multiline
-
-    [FILTER]
-        Name              multiline
-        Match             kube.*cart*
-        multiline.parser  java_multiline
-
-    [FILTER]
-        Name              multiline
-        Match             kube.*orders*
-        multiline.parser  java_multiline
-
-    # ──────────────────────────────────────────────────────────────
-    # Level detection — set level=ERROR/WARN/INFO based on log text
-    # Works for all services regardless of log format
-    # ──────────────────────────────────────────────────────────────
-    [FILTER]
-        Name    lua
-        Match   kube.*
-        script  /fluent-bit/scripts/level.lua
-        call    set_level
 
     # ──────────────────────────────────────────────────────────────
     # Compute index name via Lua
@@ -105,6 +86,8 @@ data:
         Retry_Limit         3
 
   parsers.conf: |
+    # Strip the containerd/CRI prefix ("<time> <stream> <flag> <content>")
+    # so the kubernetes filter's Merge_Log sees the bare JSON log content.
     [PARSER]
         Name        cri
         Format      regex
@@ -112,49 +95,6 @@ data:
         Time_Key    time
         Time_Format %Y-%m-%dT%H:%M:%S.%L%z
         Time_Keep   On
-
-    [PARSER]
-        Name        docker
-        Format      json
-        Time_Key    time
-        Time_Format %Y-%m-%dT%H:%M:%S.%L
-        Time_Keep   On
-
-    [PARSER]
-        Name        json_parser
-        Format      json
-        Time_Key    time
-        Time_Format %Y-%m-%dT%H:%M:%S.%LZ
-        Time_Keep   On
-
-    [PARSER]
-        Name        logback_parser
-        Format      regex
-        Regex       ^(?<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\s+(?<level>\w+)\s+(?<pid>\d+)\s+---\s+\[(?<thread>[^\]]+)\]\s+(?<logger>\S+)\s+:\s+(?<message>.*)$
-        Time_Key    timestamp
-        Time_Format %Y-%m-%d %H:%M:%S.%L
-        Time_Keep   On
-
-    [MULTILINE_PARSER]
-        Name          java_multiline
-        Type          regex
-        Flush_Timeout 1000
-        Rule          "start_state"    "/^\d{4}-\d{2}-\d{2}/"  "java_after_first"
-        Rule          "java_after_first" "/^(\s+at |Caused by:|\.{3}\s+\d+\s+more)/" "java_after_first"
-
-  level.lua: |
-    function set_level(tag, timestamp, record)
-        local log = record["log"] or ""
-        local lower = string.lower(log)
-        if string.find(lower, "error") then
-            record["level"] = "ERROR"
-        elseif string.find(lower, "warn") then
-            record["level"] = "WARN"
-        else
-            record["level"] = "INFO"
-        end
-        return 1, timestamp, record
-    end
 
   index.lua: |
     function set_index(tag, timestamp, record)
