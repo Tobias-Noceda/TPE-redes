@@ -36,6 +36,12 @@ spec:
         fsGroup: 1000
       containers:
         - name: checkout
+          env:
+            # OpenTelemetry: names spans for this service. The Node SDK always
+            # creates + propagates (W3C) trace context so trace_id lands in
+            # logs; no exporter unless OTEL_EXPORTER_OTLP_ENDPOINT is set.
+            - name: OTEL_SERVICE_NAME
+              value: checkout
           envFrom:
             - configMapRef:
                 name: checkout

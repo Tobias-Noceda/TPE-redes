@@ -36,6 +36,12 @@ spec:
         fsGroup: 1000
       containers:
         - name: catalog
+          env:
+            # OpenTelemetry: names spans for this service. Trace context is
+            # always created + propagated (W3C) in code so trace_id lands in
+            # logs; no exporter unless OTEL_EXPORTER_OTLP_ENDPOINT is set.
+            - name: OTEL_SERVICE_NAME
+              value: catalog
           envFrom:
             - configMapRef:
                 name: catalog

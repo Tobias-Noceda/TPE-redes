@@ -39,6 +39,20 @@ spec:
           env:
             - name: JAVA_OPTS
               value: -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/urandom
+            # OpenTelemetry: create + propagate trace context (W3C) so trace_id
+            # appears in logs and is shared across services. No collector, so
+            # exporters are off — correlation is done purely via logs.
+            # SDK is disabled in application.yml by default; re-enable it here.
+            - name: OTEL_SDK_DISABLED
+              value: "false"
+            - name: OTEL_SERVICE_NAME
+              value: cart
+            - name: OTEL_TRACES_EXPORTER
+              value: none
+            - name: OTEL_METRICS_EXPORTER
+              value: none
+            - name: OTEL_LOGS_EXPORTER
+              value: none
           envFrom:
             - configMapRef:
                 name: carts

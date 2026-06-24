@@ -4,18 +4,27 @@
  * schema shared across all services: timestamp, level, message, logger, service.
  */
 import { LoggerService } from '@nestjs/common';
+import { trace } from '@opentelemetry/api';
 
 export class JsonLogger implements LoggerService {
   private static readonly SERVICE = 'checkout';
 
   private write(level: string, message: unknown, logger?: string) {
-    const entry = {
+    const entry: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
       level,
       message: typeof message === 'string' ? message : JSON.stringify(message),
       logger: logger ?? 'app',
       service: JsonLogger.SERVICE,
     };
+    // Correlate this log line with the distributed trace, so logs from every
+    // service handling the same request share one trace_id.
+    const span = trace.getActiveSpan();
+    if (span) {
+      const sc = span.spanContext();
+      entry.trace_id = sc.traceId;
+      entry.span_id = sc.spanId;
+    }
     process.stdout.write(JSON.stringify(entry) + '\n');
   }
 

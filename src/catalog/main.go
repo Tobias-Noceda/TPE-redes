@@ -37,7 +37,6 @@ import (
 	"github.com/sethvargo/go-envconfig/pkg/envconfig"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 
-	"go.opentelemetry.io/contrib/detectors/aws/ec2"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/contrib/propagators/aws/xray"
 	"go.opentelemetry.io/otel"
@@ -46,6 +45,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // @title Catalog API
@@ -106,6 +106,11 @@ func ginSlogLogger() gin.HandlerFunc {
 			"latency_ms", float64(time.Since(start).Microseconds()) / 1000.0,
 			"client_ip", c.ClientIP(),
 		}
+		// Correlate this log line with the distributed trace, so logs from
+		// every service handling the same request share one trace_id.
+		if sc := trace.SpanContextFromContext(c.Request.Context()); sc.HasTraceID() {
+			attrs = append(attrs, "trace_id", sc.TraceID().String(), "span_id", sc.SpanID().String())
+		}
 		switch {
 		case status >= 500:
 			logger.Error(msg, attrs...)
@@ -123,14 +128,7 @@ func main() {
 
 	ctx := context.Background()
 
-	_, otelPresent := os.LookupEnv("OTEL_SERVICE_NAME")
-
-	if otelPresent {
-		_, err := initTracer(ctx)
-		if err != nil {
-			fatal("failed to initialize tracer", err)
-		}
-	}
+	setupTracer(ctx)
 
 	var config config.AppConfiguration
 	if err := envconfig.Process(ctx, &config); err != nil {
@@ -148,6 +146,10 @@ func main() {
 	}
 
 	r := gin.New()
+	// otelgin must be the OUTERMOST middleware: it restores the original
+	// request context in a deferred call when it returns, so any middleware
+	// that reads the span (ginSlogLogger) has to run *inside* its scope.
+	r.Use(otelgin.Middleware("catalog-server"))
 	r.Use(ginSlogLogger())
 
 	p := ginprometheus.NewPrometheus("gin")
@@ -165,7 +167,6 @@ func main() {
 	catalog := r.Group("/catalog")
 
 	catalog.Use(chaosController.ChaosMiddleware())
-	catalog.Use(otelgin.Middleware("catalog-server"))
 
 	catalog.GET("/products", c.GetProducts)
 
@@ -229,21 +230,25 @@ func main() {
 	logger.Info("server exiting", "logger", "main")
 }
 
-func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
-	client := otlptracehttp.NewClient()
-	exporter, err := otlptrace.New(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
-	}
-	idg := xray.NewIDGenerator()
-	ec2ResourceDetector := ec2.NewResourceDetector()
-	resource, _ := ec2ResourceDetector.Detect(context.Background())
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
-		sdktrace.WithIDGenerator(idg),
-		sdktrace.WithResource(resource),
-	)
+// setupTracer installs W3C trace-context propagation and a TracerProvider so
+// every incoming request continues the caller's trace and gets a trace_id.
+// An OTLP exporter is added only when OTEL_EXPORTER_OTLP_ENDPOINT is set; with
+// no collector, spans are still created and propagated — enough to stamp
+// trace_id/span_id onto logs for cross-service correlation.
+func setupTracer(ctx context.Context) {
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-	otel.SetTracerProvider(tp)
-	return tp, nil
+
+	opts := []sdktrace.TracerProviderOption{
+		sdktrace.WithIDGenerator(xray.NewIDGenerator()),
+	}
+	if _, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT"); ok {
+		exporter, err := otlptrace.New(ctx, otlptracehttp.NewClient())
+		if err != nil {
+			logger.Error("failed to create OTLP trace exporter", "logger", "main", "error", err.Error())
+		} else {
+			opts = append(opts, sdktrace.WithBatcher(exporter))
+		}
+	}
+
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(opts...))
 }

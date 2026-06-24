@@ -8,8 +8,13 @@ import process from 'node:process';
 
 // diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
+// Export spans only when a collector endpoint is configured. With no
+// collector the SDK still creates spans and propagates W3C trace context,
+// which is enough to stamp trace_id/span_id onto logs for correlation.
+const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+
 const otelSDK = new NodeSDK({
-  traceExporter: new OTLPTraceExporter(),
+  ...(otlpEndpoint ? { traceExporter: new OTLPTraceExporter() } : {}),
   instrumentations: [getNodeAutoInstrumentations()],
   idGenerator: new AWSXRayIdGenerator(),
 });
