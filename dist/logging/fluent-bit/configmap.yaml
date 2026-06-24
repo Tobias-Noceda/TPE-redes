@@ -20,15 +20,20 @@ data:
     # INPUT — tail all container logs on this node
     # Tag format: kube.<namespace_name>.<pod_name>.<container_name>
     # ──────────────────────────────────────────────────────────────
+    # multiline.parser cri reassembles containerd partial log lines (P/F flags)
+    # so large records — e.g. a Java exception with a long stack trace — arrive
+    # as a single JSON document instead of being split and dropped.
     [INPUT]
-        Name             tail
-        Path             /var/log/containers/*.log
-        Tag              kube.*
-        Parser           cri
-        Mem_Buf_Limit    10MB
-        Skip_Long_Lines  On
-        Refresh_Interval 10
-        DB               /var/flb-db/flb_kube.db
+        Name              tail
+        Path              /var/log/containers/*.log
+        Tag               kube.*
+        multiline.parser  cri
+        Mem_Buf_Limit     20MB
+        Buffer_Chunk_Size 512k
+        Buffer_Max_Size   5M
+        Skip_Long_Lines   On
+        Refresh_Interval  10
+        DB                /var/flb-db/flb_kube.db
 
     # ──────────────────────────────────────────────────────────────
     # Enrich ALL logs with Kubernetes metadata
