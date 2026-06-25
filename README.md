@@ -97,23 +97,19 @@ Logs are handled in the cluster under the sub-domain `logs.localhost` for this r
 
 After that, when accessing `logs.localhost` on your browser, you will see the OpenSearch Dashboard.
 
-#### Indexes and dashboards creation
+#### Dashboard usage 
 
-OpenSearch needs indexes to read logs and be able to understand them so as to apply filters and create dashboards. To create the index you should:
+1. Go to "Dashboard" in "OpenSearch Dashboards" section
+2. Choose one of the created dashboards
+3. Use filters if needed for granularity
+4. Individual logs can be opened with the icon over their message
 
-1. Open the side bar in the UI (`logs.localhost`)
-2. Go to "Dashboard Management" in the "Management" section.
-3. Navigate to: `saved Objects`
-4. Press import add the `/dist/logging/opensearch/dashboards/dashs/index-pattern.ndjson`
+#### Saving and exporting
+**Images:** Images of dashboards can be exported by clicking on reporting and export either as a PDF or PNG file
+**CSV files:** Reports can be created as csv files by pinning whichever filters are needed from a dashboard and navigating to the Discover page in the OpenSearch Dashboards section. Once there, more granular filters can be used to select individual columns or values. After that's done, this can be saved and later exported as a csv with the "Save" and "Reporting" buttons accordingly. 
 
-##### **Dashboards**
-
-1. Repeat de imports for the other 3 `.ndjson` files.
-2. Go to side bar in the UI
-3. Go to "Dashboard" in "OpenSearch Dashboards" section
-4. Choose one of the created dashboards
-5. Use filters if needed
-6. (Optional) Pin filters and navigate to "Discover" in "OpenSearch Dashboards" section. In the reporting tab in the top-right to create reports in a csv file.
+#### Creating a new Visualization and Dashboard
+New Dashboards and Visualizations can be created on the fly via the OpenSearch Dashboard. Inside of the Visualization tab, click on create and select the desired graph style and the information to display. Once this is done, navigating to the Dashboards section and clicking on Create allows the usage of this new Visualization along side pre-existing ones to create a new Dashboard. 
 
 ---
 
