@@ -41,6 +41,11 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
   );
 
   @Override
+  protected boolean shouldNotFilter(HttpServletRequest request) {
+    return !request.getRequestURI().startsWith("/orders");
+  }
+
+  @Override
   protected void doFilterInternal(
     HttpServletRequest request,
     HttpServletResponse response,
